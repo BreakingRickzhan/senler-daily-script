@@ -2,15 +2,15 @@ name: Run Senler Script Daily
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # каждый день в 00:00 UTC
-  workflow_dispatch:      # разрешает запуск вручную
+    - cron: '0 0 * * *'  # запуск каждый день в 00:00 UTC
+  workflow_dispatch:      # разрешает ручной запуск с кнопки
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v3
 
     - name: Set up Python
@@ -18,9 +18,9 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install dependencies (optional)
       run: |
-        pip install -r requirements.txt || true  # если зависимостей нет, игнорируем ошибку
+        pip install -r requirements.txt || true
 
     - name: Run script
       run: python senler_script.py
