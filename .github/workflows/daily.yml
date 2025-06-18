@@ -3,7 +3,7 @@ name: Run Senler Script Daily
 on:
   workflow_dispatch:      # разрешает ручной запуск с кнопки
   schedule:
-    - cron: '40 1 * * *'  # запуск каждый день в 00:00 UTC
+     - cron: '*/5 * * * *'  # запуск каждый день в 00:00 UTC
  
 
 jobs:
