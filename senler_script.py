@@ -2,7 +2,6 @@ import requests
 import datetime
 import json
 
-# === Автоматическая дата ===
 today = datetime.datetime.now()
 yesterday = today - datetime.timedelta(days=1)
 
