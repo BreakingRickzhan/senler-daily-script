@@ -25,4 +25,4 @@ jobs:
 
     - name: Run script
       run: python senler_script.py
-# trigger test
+
