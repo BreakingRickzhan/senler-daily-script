@@ -1,6 +1,7 @@
 import requests
 import datetime
 import json
+import time
 
 today = datetime.datetime.now()
 yesterday = today - datetime.timedelta(days=1)
@@ -13,7 +14,6 @@ MONTH = yesterday.month
 print(f"Дата: {DATE}")
 print(f"Период: {DATE_FROM} → {DATE_TO}")
 
-# соответствие названий подписок
 POST_LABELS = {
     1: "Ютуб",
     6: "Рассылка",
@@ -25,7 +25,6 @@ POST_LABELS = {
     13: "ВК Клип"
 }
 
-# === Данные по сообществам ===
 GROUPS = {
     "Русский": {
         "group_id": 205902460,
@@ -85,10 +84,12 @@ GROUPS = {
     }
 }
 
-def get_all_subscribers(group_id, token, subscription_ids):
+def get_all_subscribers(group_id, token, subscription_ids, max_retries=3, timeout=20):
     url = "https://senler.ru/api/subscribers/get"
     users = []
     offset = None
+    retries = 0
+
     while True:
         params = {
             "access_token": token,
@@ -101,15 +102,28 @@ def get_all_subscribers(group_id, token, subscription_ids):
         if offset:
             params["offset_id"] = offset
 
-        response = requests.get(url, params=params).json()
-        items = response.get("items", [])
-        if not items:
-            break
-
-        users.extend(items)
-        offset = response.get("offset_id")
-        if not offset:
-            break
+        try:
+            print(f"Запрос: group_id={group_id}, sub_ids={subscription_ids}, offset={offset}")
+            response = requests.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            items = data.get("items", [])
+            if not items:
+                break
+            users.extend(items)
+            offset = data.get("offset_id")
+            if not offset:
+                break
+            retries = 0  # сброс повторов после успешного запроса
+        except requests.exceptions.RequestException as e:
+            print(f"Ошибка запроса: {e}")
+            retries += 1
+            if retries > max_retries:
+                print(f"Превышено число попыток ({max_retries}), прерываем.")
+                break
+            wait = retries * 5
+            print(f"Повтор через {wait} секунд...")
+            time.sleep(wait)
 
     return users
 
@@ -145,6 +159,7 @@ for group_name, config in GROUPS.items():
 
             print(f"{label} (sub_id={sub_id}): {count}")
             total_count += count
+            time.sleep(1)  # задержка между запросами к API, чтобы не перегружать
 
         results.append({
             "date": DATE,
@@ -168,20 +183,19 @@ def send_to_google(results):
     url = "https://script.google.com/macros/s/AKfycbya3sMFue7mlSMVn2lV6TeQIXw9V7BRtzzjsBeuNgxfPdAGaMW9HkFVF-BTinW2bMY3/exec"
     headers = {"Content-Type": "application/json"}
     print("\n=== Отправка данных в Google Sheets ===")
-    print(json.dumps(results, indent=2, ensure_ascii=False))  # отладка
+    print(json.dumps(results, indent=2, ensure_ascii=False))
 
     if not results:
         print("Пустой список результатов — ничего не отправляем.")
         return
 
     try:
-        response = requests.post(url, json=results, headers=headers)
+        response = requests.post(url, json=results, headers=headers, timeout=20)
         print("Status code:", response.status_code)
         print("Response:", response.text)
     except Exception as e:
         print("Ошибка при отправке:", e)
 
-# Выполнение отправки
 print(results)
 send_to_google(results)
 print(json.dumps(results, indent=2, ensure_ascii=False))
